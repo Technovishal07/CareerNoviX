@@ -2,12 +2,24 @@ import React from "react";
 
 const ResumeModal = ({ imageUrl, onClose }) => {
   return (
-    <div className="resume-modal">
-      <div className="modal-content">
-        <span className="close" onClick={onClose}>
-          &times;
-        </span>
-        <img src={imageUrl} alt="resume" />
+    <div className="resume-modal-overlay">
+      <div className="resume-modal">
+
+        <button
+          className="resume-back-btn"
+          onClick={onClose}
+        >
+          ← Back
+        </button>
+
+        <button
+          className="resume-close-btn"
+          onClick={onClose}
+        >
+          ✕
+        </button>
+
+        <img src={imageUrl} alt="Resume" />
       </div>
     </div>
   );

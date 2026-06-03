@@ -1,137 +1,169 @@
 import React, { useContext, useState } from "react";
-import { FaRegUser } from "react-icons/fa";
-import { MdOutlineMailOutline } from "react-icons/md";
-import { RiLock2Fill } from "react-icons/ri";
-import { FaPencilAlt } from "react-icons/fa";
+import {
+  FaRegUser,
+  FaPencilAlt,
+} from "react-icons/fa";
 import { FaPhoneFlip } from "react-icons/fa6";
+import {
+  MdOutlineMailOutline,
+  MdVisibility,
+  MdVisibilityOff,
+} from "react-icons/md";
+import { RiLock2Fill } from "react-icons/ri";
 import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Context } from "../../main";
 
 const Register = () => {
-  const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [role, setRole] = useState("Job Seeker"); // Default role
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("");
 
-  const { isAuthorized, setIsAuthorized, user, setUser } = useContext(Context);
+  const { isAuthorized, setIsAuthorized } = useContext(Context);
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
     try {
       const { data } = await axios.post(
         "http://localhost:4000/api/v1/user/register",
         { name, phone, email, role, password },
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           withCredentials: true,
         }
       );
+
       toast.success(data.message);
       setName("");
+      setPhone("");
       setEmail("");
       setPassword("");
-      setPhone("");
-      setRole("");
+      setRole("Job Seeker");
       setIsAuthorized(true);
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error?.response?.data?.message || "Registration Failed");
     }
   };
 
-  if(isAuthorized){
-    return <Navigate to={'/'}/>
+  if (isAuthorized) {
+    return <Navigate to="/" />;
   }
 
-
   return (
-    <>
-      <section className="authPage">
-        <div className="container">
-          <div className="header">
-            <img src="logo.png" alt="logo" />
-            <h3>Create a new account</h3>
+    <section className="register-page">
+      <div className="register-card">
+        <div className="register-left">
+          <div className="logo-area">
+            <img src="/logo.png" alt="CareerNova" />
+            <h2>Create Account</h2>
+            <p>Join CareerNova and start your professional journey today.</p>
           </div>
-          <form>
-            <div className="inputTag">
-              <label>Register As</label>
-              <div>
-                <FaRegUser />
-                <select value={role} onChange={(e) => setRole(e.target.value)}>
-                  <option value="">Select Role</option>
-                  <option value="Employer">Employer</option>
-                  <option value="Job Seeker">Job Seeker</option>
-                </select>
-                
-              </div>
-            </div>
-            <div className="inputTag">
-              <label>Name</label>
-              <div>
-                <FaPencilAlt />
-                <input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                
-              </div>
-            </div>
-            <div className="inputTag">
-              <label>Email Address</label>
-              <div>
-                <MdOutlineMailOutline />
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                
-              </div>
-            </div>
-            <div className="inputTag">
-              <label>Phone Number</label>
-              <div>
-                <FaPhoneFlip />
-                <input
-                  type="number"
-                  placeholder="Enter your phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-                
-              </div>
-            </div>
-            <div className="inputTag">
-              <label>Password</label>
-              <div>
-                <RiLock2Fill />
-                <input
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                
-              </div>
-            </div>
-            <button type="submit" onClick={handleRegister}>
-              Register
+
+          {/* Simple Buttons Without New Icons */}
+          <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                padding: "10px",
+                backgroundColor: role === "Job Seeker" ? "#17a2b8" : "#f0f0f0",
+                color: role === "Job Seeker" ? "#fff" : "#000",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+                fontWeight: "bold"
+              }}
+              onClick={() => setRole("Job Seeker")}
+            >
+              Job Seeker
             </button>
-            <Link to={"/login"}>Login Now</Link>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                padding: "10px",
+                backgroundColor: role === "Employer" ? "#17a2b8" : "#f0f0f0",
+                color: role === "Employer" ? "#fff" : "#000",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+                fontWeight: "bold"
+              }}
+              onClick={() => setRole("Employer")}
+            >
+              Employer
+            </button>
+          </div>
+
+          <form onSubmit={handleRegister}>
+            <div className="input-box">
+              <FaPencilAlt />
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="input-box">
+              <MdOutlineMailOutline />
+              <input
+                type="email"
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="input-box">
+              <FaPhoneFlip />
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="input-box">
+              <RiLock2Fill />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Create Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <span className="eye-icon" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <MdVisibilityOff /> : <MdVisibility />}
+              </span>
+            </div>
+
+            <button type="submit" className="register-btn">
+              Register as {role}
+            </button>
+
+            <p className="login-link">
+              Already have an account? <Link to="/login">Login Now</Link>
+            </p>
           </form>
         </div>
-        <div className="banner">
-          <img src="/register.png" alt="login" />
+
+        <div className="register-right">
+          <img src="/register.png" alt="Register" />
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 

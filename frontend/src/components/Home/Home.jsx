@@ -4,8 +4,10 @@ import { Context } from "../../main";
 import { Navigate } from "react-router-dom";
 import HeroSection from "./HeroSection";
 import HowItWorks from "./HowItWorks";
-import PopularCategories from "./PopularCategories";
-import PopularCompanies from "./PopularCompanies";
+import Services from "./Services";
+import ExploreCompanys from "./ExploreCompany";
+import ContactSection from "./ContactSection";
+import TrainingSection from "./TrainingSection";
 
 const Home = () => {
   const { isAuthorized } = useContext(Context);
@@ -17,8 +19,10 @@ const Home = () => {
       <section className="homePage page">
         <HeroSection />
         <HowItWorks />
-        <PopularCategories />
-        <PopularCompanies />
+        <Services />
+        <ExploreCompanys />
+        <TrainingSection />
+        <ContactSection />
       </section>
     </>
   );

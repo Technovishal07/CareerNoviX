@@ -1,79 +1,100 @@
 import axios from "axios";
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Context } from "../../main";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiUploadCloud, FiCheckCircle } from "react-icons/fi";
 
 const Application = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [coverLetter, setCoverLetter] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [resume, setResume] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [fileError, setFileError] = useState("");
-
   const { isAuthorized, user } = useContext(Context);
-  const navigateTo = useNavigate();
+
+  const navigate = useNavigate();
   const { id } = useParams();
 
-  // Function to handle file input changes with validation
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    coverLetter: "",
+  });
+
+  const [resume, setResume] = useState(null);
+  const [fileError, setFileError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthorized || user?.role === "Employer") {
+      navigate("/");
+    }
+
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+      }));
+    }
+  }, [user, isAuthorized, navigate]);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
     setFileError("");
-    
-    if (!file) {
-      setResume(null);
-      return;
-    }
-    
-    // Check file type
+
+    if (!file) return;
+
     const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
+
     if (!allowedTypes.includes(file.type)) {
-      setFileError("Please select a valid image file (PNG, JPEG, or WEBP)");
+      setFileError("Only PNG, JPG, JPEG and WEBP files are allowed.");
       setResume(null);
       return;
     }
-    
-    // Check file size (limit to 2MB)
+
     if (file.size > 2 * 1024 * 1024) {
-      setFileError("File size should be less than 2MB");
+      setFileError("Resume size must be under 2MB.");
       setResume(null);
       return;
     }
-    
+
     setResume(file);
   };
 
   const handleApplication = async (e) => {
     e.preventDefault();
-    
-    // Validate form
+
+    const { name, email, phone, address, coverLetter } = formData;
+
     if (!name || !email || !phone || !address || !coverLetter) {
-      toast.error("Please fill in all fields");
-      return;
+      return toast.error("Please fill all required fields.");
     }
-    
+
     if (!resume) {
-      setFileError("Please upload your resume");
-      return;
+      return setFileError("Please upload your resume to proceed.");
     }
-    
+
     setLoading(true);
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("email", email);
-    formData.append("phone", phone);
-    formData.append("address", address);
-    formData.append("coverLetter", coverLetter);
-    formData.append("resume", resume);
-    formData.append("jobId", id);
 
     try {
+      const submitData = new FormData();
+
+      Object.keys(formData).forEach((key) => {
+        submitData.append(key, formData[key]);
+      });
+
+      submitData.append("resume", resume);
+      submitData.append("jobId", id);
+
       const { data } = await axios.post(
         "http://localhost:4000/api/v1/application/post",
-        formData,
+        submitData,
         {
           withCredentials: true,
           headers: {
@@ -81,101 +102,154 @@ const Application = () => {
           },
         }
       );
-      setName("");
-      setEmail("");
-      setCoverLetter("");
-      setPhone("");
-      setAddress("");
-      setResume(null);
+
       toast.success(data.message);
-      navigateTo("/job/getall");
+      navigate("/job/getall");
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 
-        "Something went wrong. Please try again later.";
-      toast.error(errorMessage);
-      
-      // Show specific message for Cloudinary errors
-      if (errorMessage.includes("Cloudinary") || errorMessage.includes("api_key")) {
-        toast.error("File upload service is currently unavailable. Please try again later.");
-      }
+      toast.error(
+        error.response?.data?.message || "Application submission failed."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isAuthorized || (user && user.role === "Employer")) {
-    navigateTo("/");
-  }
-
   return (
-    <section className="application">
-      <div className="container">
-        <h3>Application Form</h3>
-        <form onSubmit={handleApplication}>
-          <input
-            type="text"
-            placeholder="Your Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Your Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="number"
-            placeholder="Your Phone Number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Your Address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            required
-          />
-          <textarea
-            placeholder="Cover Letter..."
-            value={coverLetter}
-            onChange={(e) => setCoverLetter(e.target.value)}
-            required
-          />
-          <div>
-            <label
-              style={{ textAlign: "start", display: "block", fontSize: "20px" }}
-            >
-              Upload Resume 
-              <p style={{ color: "red", fontSize: "12px", margin: "5px 0 0 0" }}>
-                (Supported formats: PNG, JPEG, WEBP. Max size: 2MB)
-              </p>
-            </label>
+    <section className="premium-apply-page">
+      <div className="premium-apply-container">
+        
+        <div className="premium-apply-header">
+          <h1>Apply For This Position</h1>
+          <p>Provide your up-to-date professional credentials to ensure a successful application evaluation.</p>
+        </div>
+
+        <form className="premium-apply-form" onSubmit={handleApplication}>
+          
+          {/* Form Matrix Grid */}
+          <div className="premium-form-grid">
+            <div className="premium-group">
+              <label>Full Name</label>
+              <div className="premium-input-wrapper">
+                <FiUser className="input-icon" />
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="John Doe"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="premium-group">
+              <label>Email Address</label>
+              <div className="premium-input-wrapper">
+                <FiMail className="input-icon" />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="johndoe@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="premium-group">
+              <label>Phone Number</label>
+              <div className="premium-input-wrapper">
+                <FiPhone className="input-icon" />
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="+1 (555) 000-0000"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="premium-group">
+              <label>Current Address</label>
+              <div className="premium-input-wrapper">
+                <FiMapPin className="input-icon" />
+                <input
+                  type="text"
+                  name="address"
+                  placeholder="City, Country"
+                  value={formData.address}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Full Width Cover Letter Block */}
+          <div className="premium-group">
+            <label>Cover Letter</label>
+            <textarea
+              rows="6"
+              name="coverLetter"
+              placeholder="Express why you're a great fit for this specific opportunity..."
+              value={formData.coverLetter}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Premium Dropzone File Uploader Component */}
+          <div className={`premium-upload-zone ${resume ? "file-selected" : ""} ${fileError ? "has-error" : ""}`}>
             <input
               type="file"
+              id="resume-upload"
               accept=".png,.jpg,.jpeg,.webp"
               onChange={handleFileChange}
-              style={{ width: "100%" }}
+              className="hidden-file-input"
             />
-            {fileError && (
-              <p style={{ color: "red", fontSize: "14px", marginTop: "5px" }}>
-                {fileError}
-              </p>
+            <label htmlFor="resume-upload" className="upload-zone-label">
+              {resume ? (
+                <FiCheckCircle className="upload-icon success" />
+              ) : (
+                <FiUploadCloud className="upload-icon" />
+              )}
+              
+              <div className="upload-text-block">
+                <span className="upload-title">
+                  {resume ? "Resume uploaded successfully" : "Click to upload your resume"}
+                </span>
+                <span className="upload-subtitle">
+                  Supports PNG, JPG, JPEG, WEBP up to 2MB
+                </span>
+              </div>
+            </label>
+
+            {resume && (
+              <div className="attached-file-badge">
+                <span className="file-indicator">Attached:</span> {resume.name}
+              </div>
             )}
+
+            {fileError && <p className="premium-error-msg">{fileError}</p>}
           </div>
-          <button 
-            type="submit" 
+
+          {/* Action Submission Trigger */}
+          <button
+            type="submit"
+            className={`premium-submit-trigger ${loading ? "is-submitting" : ""}`}
             disabled={loading}
-            style={{ 
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer" 
-            }}
           >
-            {loading ? "Submitting..." : "Send Application"}
+            {loading ? (
+              <div className="button-spinner-container">
+                <div className="mini-loader"></div>
+                <span>Processing Application...</span>
+              </div>
+            ) : (
+              "Submit Application Package"
+            )}
           </button>
         </form>
       </div>

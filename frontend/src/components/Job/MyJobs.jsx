@@ -9,10 +9,16 @@ import { useNavigate } from "react-router-dom";
 const MyJobs = () => {
   const [myJobs, setMyJobs] = useState([]);
   const [editingMode, setEditingMode] = useState(null);
-  const { isAuthorized, user } = useContext(Context);
 
+  const { isAuthorized, user } = useContext(Context);
   const navigateTo = useNavigate();
-  //Fetching all jobs
+
+  useEffect(() => {
+    if (!isAuthorized || user?.role !== "Employer") {
+      navigateTo("/");
+    }
+  }, [isAuthorized, user, navigateTo]);
+
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -22,334 +28,212 @@ const MyJobs = () => {
         );
         setMyJobs(data.myJobs);
       } catch (error) {
-        toast.error(error.response.data.message);
+        toast.error(error?.response?.data?.message || "Error fetching jobs");
         setMyJobs([]);
       }
     };
     fetchJobs();
   }, []);
-  if (!isAuthorized || (user && user.role !== "Employer")) {
-    navigateTo("/");
-  }
 
-  //Function For Enabling Editing Mode
-  const handleEnableEdit = (jobId) => {
-    //Here We Are Giving Id in setEditingMode because We want to enable only that job whose ID has been send.
-    setEditingMode(jobId);
-  };
+  const handleEnableEdit = (id) => setEditingMode(id);
+  const handleDisableEdit = () => setEditingMode(null);
 
-  //Function For Disabling Editing Mode
-  const handleDisableEdit = () => {
-    setEditingMode(null);
-  };
-
-  //Function For Updating The Job
-  const handleUpdateJob = async (jobId) => {
-    const updatedJob = myJobs.find((job) => job._id === jobId);
-    await axios
-      .put(`http://localhost:4000/api/v1/job/update/${jobId}`, updatedJob, {
-        withCredentials: true,
-      })
-      .then((res) => {
-        toast.success(res.data.message);
-        setEditingMode(null);
-      })
-      .catch((error) => {
-        toast.error(error.response.data.message);
-      });
-  };
-
-  //Function For Deleting Job
-  const handleDeleteJob = async (jobId) => {
-    await axios
-      .delete(`http://localhost:4000/api/v1/job/delete/${jobId}`, {
-        withCredentials: true,
-      })
-      .then((res) => {
-        toast.success(res.data.message);
-        setMyJobs((prevJobs) => prevJobs.filter((job) => job._id !== jobId));
-      })
-      .catch((error) => {
-        toast.error(error.response.data.message);
-      });
-  };
-
-  const handleInputChange = (jobId, field, value) => {
-    // Update the job object in the jobs state with the new value
-    setMyJobs((prevJobs) =>
-      prevJobs.map((job) =>
-        job._id === jobId ? { ...job, [field]: value } : job
+  const handleInputChange = (id, field, value) => {
+    setMyJobs((prev) =>
+      prev.map((job) =>
+        job._id === id ? { ...job, [field]: value } : job
       )
     );
   };
 
+  const handleUpdateJob = async (jobId) => {
+    const updatedJob = myJobs.find((j) => j._id === jobId);
+
+    try {
+      const res = await axios.put(
+        `http://localhost:4000/api/v1/job/update/${jobId}`,
+        updatedJob,
+        { withCredentials: true }
+      );
+
+      toast.success(res.data.message);
+      setEditingMode(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update job");
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    if(!window.confirm("Are you sure you want to delete this job posting?")) return;
+    try {
+      const res = await axios.delete(
+        `http://localhost:4000/api/v1/job/delete/${jobId}`,
+        { withCredentials: true }
+      );
+
+      toast.success(res.data.message);
+      setMyJobs((prev) => prev.filter((j) => j._id !== jobId));
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete job");
+    }
+  };
+
   return (
-    <>
-      <div className="myJobs page">
-        <div className="container">
-          <h1>Your Posted Jobs</h1>
-          {myJobs.length > 0 ? (
-            <>
-              <div className="banner">
-                {myJobs.map((element) => (
-                  <div className="card" key={element._id}>
-                    <div className="content">
-                      <div className="short_fields">
-                        <div>
-                          <span>Title:</span>
-                          <input
-                            type="text"
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                            value={element.title}
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "title",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div>
-                          {" "}
-                          <span>Country:</span>
-                          <input
-                            type="text"
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                            value={element.country}
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "country",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div>
-                          <span>City:</span>
-                          <input
-                            type="text"
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                            value={element.city}
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "city",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div>
-                          <span>Category:</span>
-                          <select
-                            value={element.category}
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "category",
-                                e.target.value
-                              )
-                            }
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                          >
-                            <option value="Graphics & Design">
-                              Graphics & Design
-                            </option>
-                            <option value="Mobile App Development">
-                              Mobile App Development
-                            </option>
-                            <option value="Frontend Web Development">
-                              Frontend Web Development
-                            </option>
-                            <option value="UI/UX Design">
-                              UI/UX Design
-                            </option>
-                            <option value="Account & Finance">
-                              Account & Finance
-                            </option>
-                            <option value="Artificial Intelligence">
-                              Artificial Intelligence
-                            </option>
-                            <option value="Video Animation">
-                              Video Animation
-                            </option>
-                            <option value="IT & Software Development">
-                              IT & Software Development
-                            </option>
-                            <option value="Data Science & Analytics">
-                              Data Science & Analytics
-                            </option>
-                            <option value="Digital Marketing">
-                              Digital Marketing
-                            </option>
-                          </select>
-                        </div>
-                        <div>
-                          <span>
-                            Salary:{" "}
-                            {element.fixedSalary ? (
-                              <input
-                                type="number"
-                                disabled={
-                                  editingMode !== element._id ? true : false
-                                }
-                                value={element.fixedSalary}
-                                onChange={(e) =>
-                                  handleInputChange(
-                                    element._id,
-                                    "fixedSalary",
-                                    e.target.value
-                                  )
-                                }
-                              />
-                            ) : (
-                              <div>
-                                <input
-                                  type="number"
-                                  disabled={
-                                    editingMode !== element._id ? true : false
-                                  }
-                                  value={element.salaryFrom}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      element._id,
-                                      "salaryFrom",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                                <input
-                                  type="number"
-                                  disabled={
-                                    editingMode !== element._id ? true : false
-                                  }
-                                  value={element.salaryTo}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      element._id,
-                                      "salaryTo",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </div>
-                            )}
-                          </span>
-                        </div>
-                        <div>
-                          {" "}
-                          <span>Expired:</span>
-                          <select
-                            value={element.expired}
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "expired",
-                                e.target.value
-                              )
-                            }
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                          >
-                            <option value={true}>TRUE</option>
-                            <option value={false}>FALSE</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="long_field">
-                        <div>
-                          <span>Description:</span>{" "}
-                          <textarea
-                            rows={5}
-                            value={element.description}
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "description",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div>
-                          <span>Location: </span>
-                          <textarea
-                            value={element.location}
-                            rows={5}
-                            disabled={
-                              editingMode !== element._id ? true : false
-                            }
-                            onChange={(e) =>
-                              handleInputChange(
-                                element._id,
-                                "location",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
+    <div className="premium-jobs-container">
+      <div className="premium-jobs-wrapper">
+        <div className="premium-jobs-header">
+          <h1 className="premium-page-title">Manage Job Listings</h1>
+          <p className="premium-page-subtitle">View, edit, or remove your currently active and expired jobs.</p>
+        </div>
+
+        {/* STATS SECTION */}
+        <div className="premium-stats-grid">
+          <div className="premium-stat-card total">
+            <span className="stat-label">Total Postings</span>
+            <h2 className="stat-value">{myJobs.length}</h2>
+          </div>
+
+          <div className="premium-stat-card active">
+            <span className="stat-label">Active</span>
+            <h2 className="stat-value">{myJobs.filter(j => !j.expired).length}</h2>
+          </div>
+
+          <div className="premium-stat-card expired">
+            <span className="stat-label">Expired</span>
+            <h2 className="stat-value">{myJobs.filter(j => j.expired).length}</h2>
+          </div>
+        </div>
+
+        {/* JOBS DISPLAY GRID */}
+        {myJobs.length === 0 ? (
+          <div className="premium-empty-state">
+            <p>You haven't posted any jobs yet.</p>
+          </div>
+        ) : (
+          <div className="premium-job-grid">
+            {myJobs.map((job) => {
+              const isEditing = editingMode === job._id;
+              return (
+                <div className={`premium-manage-card ${job.expired ? "is-expired" : ""} ${isEditing ? "is-editing" : ""}`} key={job._id}>
+                  
+                  {/* TOP HEADER BOX */}
+                  <div className="manage-card-top">
+                    <div className="title-area">
+                      <input
+                        type="text"
+                        className="live-edit-title"
+                        disabled={!isEditing}
+                        value={job.title}
+                        onChange={(e) => handleInputChange(job._id, "title", e.target.value)}
+                      />
+                      <span className="category-tag">{job.category}</span>
                     </div>
-                    {/* Out Of Content Class */}
-                    <div className="button_wrapper">
-                      <div className="edit_btn_wrapper">
-                        {editingMode === element._id ? (
-                          <>
-                            <button
-                              onClick={() => handleUpdateJob(element._id)}
-                              className="check_btn"
-                            >
-                              <FaCheck />
-                            </button>
-                            <button
-                              onClick={() => handleDisableEdit()}
-                              className="cross_btn"
-                            >
-                              <RxCross2 />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handleEnableEdit(element._id)}
-                            className="edit_btn"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteJob(element._id)}
-                        className="delete_btn"
-                      >
-                        Delete
-                      </button>
+                    <span className={`status-pill ${job.expired ? "expired" : "active"}`}>
+                      {job.expired ? "Expired" : "Active"}
+                    </span>
+                  </div>
+
+                  {/* METADATA LOCATION BOX */}
+                  <div className="manage-card-meta">
+                    <div className="meta-field">
+                      <label>City</label>
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={job.city}
+                        onChange={(e) => handleInputChange(job._id, "city", e.target.value)}
+                      />
+                    </div>
+                    <div className="meta-field">
+                      <label>Country</label>
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={job.country}
+                        onChange={(e) => handleInputChange(job._id, "country", e.target.value)}
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p>
-              You've not posted any job or may be you deleted all of your jobs!
-            </p>
-          )}
-        </div>
+
+                  {/* SALARY SPECIFICS */}
+                  <div className="manage-card-salary">
+                    <label className="salary-label">Compensation Plan</label>
+                    {job.fixedSalary ? (
+                      <div className="salary-input-wrapper">
+                        <span className="currency-symbol">₹</span>
+                        <input
+                          type="number"
+                          disabled={!isEditing}
+                          value={job.fixedSalary}
+                          onChange={(e) => handleInputChange(job._id, "fixedSalary", e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="salary-range-fields">
+                        <div className="salary-input-wrapper">
+                          <span className="currency-symbol">₹</span>
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            disabled={!isEditing}
+                            value={job.salaryFrom}
+                            onChange={(e) => handleInputChange(job._id, "salaryFrom", e.target.value)}
+                          />
+                        </div>
+                        <span className="range-splitter">to</span>
+                        <div className="salary-input-wrapper">
+                          <span className="currency-symbol">₹</span>
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            disabled={!isEditing}
+                            value={job.salaryTo}
+                            onChange={(e) => handleInputChange(job._id, "salaryTo", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DESCRIPTION */}
+                  <div className="manage-card-desc">
+                    <label>Job Description</label>
+                    <textarea
+                      rows={3}
+                      disabled={!isEditing}
+                      value={job.description}
+                      onChange={(e) => handleInputChange(job._id, "description", e.target.value)}
+                    />
+                  </div>
+
+                  {/* PREMIUM ACTIONS COMPONENT */}
+                  <div className="manage-card-actions">
+                    {isEditing ? (
+                      <div className="editing-action-box">
+                        <button className="p-action-btn p-save-btn" onClick={() => handleUpdateJob(job._id)} title="Save Updates">
+                          <FaCheck /> Confirm
+                        </button>
+                        <button className="p-action-btn p-cancel-btn" onClick={handleDisableEdit} title="Cancel Editing">
+                          <RxCross2 /> Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="p-action-btn p-edit-btn" onClick={() => handleEnableEdit(job._id)}>
+                        Edit Details
+                      </button>
+                    )}
+                    <button className="p-action-btn p-delete-btn" onClick={() => handleDeleteJob(job._id)}>
+                      Delete Listing
+                    </button>
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

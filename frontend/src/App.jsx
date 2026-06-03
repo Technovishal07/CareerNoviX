@@ -17,6 +17,7 @@ import PostJob from "./components/Job/PostJob";
 import NotFound from "./components/NotFound/NotFound";
 import MyJobs from "./components/Job/MyJobs";
 
+
 const App = () => {
   const { isAuthorized, setIsAuthorized, setUser } = useContext(Context);
   useEffect(() => {
