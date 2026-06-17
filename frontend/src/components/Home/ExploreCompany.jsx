@@ -26,7 +26,7 @@ const ExploreCompany = () => {
     <section className="explore-section">
       <div className="container">
         <div className="heading">
-          <h1>Explore CareerNova Company</h1>
+          <h1>Explore CareerNoviX Company</h1>
           <p>
             Discover opportunities, industries we serve, and comprehensive
             services we offer

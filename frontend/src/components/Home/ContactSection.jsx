@@ -41,7 +41,7 @@ const ContactSection = () => {
             <h3>Email</h3>
             <p>Send your inquiry</p>
 
-            <a href="mailto:info@careernova.com">info@careernova.com</a>
+            <a href="mailto:careernovix2026@gmail.com">careernovix2026@gmail.com</a>
 
             <span>Response in 24h</span>
           </div>

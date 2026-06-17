@@ -65,7 +65,7 @@ const JobDetails = () => {
 
             <p className="company-name">
               <FaBuilding />
-              {job.companyName || "CareerNova Partner"}
+              {job.companyName || "CareerNoviX Partner"}
             </p>
 
             <div className="hero-tags">

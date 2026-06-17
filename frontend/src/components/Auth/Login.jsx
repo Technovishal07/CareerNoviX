@@ -5,6 +5,7 @@ import {
   MdVisibilityOff,
 } from "react-icons/md";
 import { RiLock2Fill } from "react-icons/ri";
+import { FaLock } from "react-icons/fa"; // Admin key icon ke liye
 import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -14,8 +15,9 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [adminKey, setAdminKey] = useState(""); // Admin key state add ki
   
-  // Role ko alag karke default value 'Job Seeker' de di hai
+  // Role selection default state 'Job Seeker'
   const [role, setRole] = useState("Job Seeker");
 
   const { isAuthorized, setIsAuthorized } = useContext(Context);
@@ -24,9 +26,10 @@ const Login = () => {
     e.preventDefault();
 
     try {
+      // Payload mein adminKey ko bhi bhej rahe hain
       const { data } = await axios.post(
         "http://localhost:4000/api/v1/user/login",
-        { email, password, role },
+        { email, password, role, adminKey },
         {
           headers: { "Content-Type": "application/json" },
           withCredentials: true,
@@ -46,11 +49,11 @@ const Login = () => {
     <div className="login-page">
       <div className="login-card">
         <div className="login-left">
-          <img src="/logo.png" alt="CareerNova" />
+          <img src="/logo.png" alt="CareerNoviX" />
           <h2>Welcome Back</h2>
-          <p>Login to continue your career journey with CareerNova.</p>
+          <p>Login to continue your career journey with CareerNoviX.</p>
 
-          {/* --- Separate Role Selection Tabs (No new icons used) --- */}
+          {/* --- Separate Role Selection Tabs --- */}
           <div style={{ display: "flex", gap: "10px", marginBottom: "20px", width: "100%" }}>
             <button
               type="button"
@@ -65,7 +68,10 @@ const Login = () => {
                 fontWeight: "600",
                 transition: "all 0.3s ease"
               }}
-              onClick={() => setRole("Job Seeker")}
+              onClick={() => {
+                setRole("Job Seeker");
+                setAdminKey(""); // Job Seeker select hote hi key clear ho jayegi
+              }}
             >
               Job Seeker
             </button>
@@ -124,6 +130,20 @@ const Login = () => {
                 )}
               </span>
             </div>
+
+            {/* Dynamic Admin Key Input Field (Sirf Employer select hone par dikhega) */}
+            {role === "Employer" && (
+              <div className="input-box" style={{ border: "1px solid #e67e22" }}>
+                <FaLock style={{ color: "#e67e22" }} />
+                <input
+                  type="password"
+                  placeholder="Enter Admin Secret Key"
+                  value={adminKey}
+                  onChange={(e) => setAdminKey(e.target.value)}
+                  required 
+                />
+              </div>
+            )}
             
             {/* Dynamic Button Text */}
             <button type="submit" className="login-btn">

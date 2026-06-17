@@ -9,7 +9,7 @@ const HeroSection = () => {
         <div className="hero-content">
           <h1>
             <span className="main-blue">Career</span>
-            <span className="main-orange">Nova</span>
+            <span className="main-orange">NoviX</span>
           </h1>
 
           <h2>Transform Your Career Future</h2>

@@ -119,7 +119,7 @@ const Jobs = () => {
                   <div className="job-info">
                     <p>
                       <FaBuilding />
-                      {job.companyName || "CareerNova Partner"}
+                      {job.companyName || "CareerNoviX Partner"}
                     </p>
 
                     <p>

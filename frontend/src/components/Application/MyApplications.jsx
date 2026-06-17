@@ -4,7 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import ResumeModal from "./ResumeModal";
-import { FiEye, FiTrash2, FiPhone, FiMapPin, FiMail } from "react-icons/fi";
+import { FiEye, FiTrash2, FiPhone, FiMapPin, FiMail, FiLock } from "react-icons/fi";
 
 const MyApplications = () => {
   const { user, isAuthorized } = useContext(Context);
@@ -13,6 +13,7 @@ const MyApplications = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [resumeImageUrl, setResumeImageUrl] = useState("");
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const navigate = useNavigate();
 
@@ -25,17 +26,32 @@ const MyApplications = () => {
   useEffect(() => {
     const fetchApplications = async () => {
       try {
+        setLoading(true);
+        setAccessDenied(false);
+
         const endpoint =
           user?.role === "Employer"
             ? "http://localhost:4000/api/v1/application/employer/getall"
             : "http://localhost:4000/api/v1/application/jobseeker/getall";
 
+        const token = localStorage.getItem("token");
+
         const { data } = await axios.get(endpoint, {
           withCredentials: true,
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
         });
 
-        setApplications(data.applications);
+        setApplications(data.applications || []);
       } catch (error) {
+        console.error("Fetch application failed:", error.response);
+        
+        // 🚨 Check karein agar error 403 Forbidden hai (Yaani Admin Key validation fail)
+        if (error.response?.status === 403) {
+          setAccessDenied(true);
+        }
+        
         toast.error(
           error.response?.data?.message || "Failed to load applications"
         );
@@ -63,24 +79,8 @@ const MyApplications = () => {
     };
   }, [modalOpen]);
 
-  const deleteApplication = async (id) => {
-    if (!window.confirm("Are you sure you want to remove this application?")) return;
-    try {
-      const { data } = await axios.delete(
-        `http://localhost:4000/api/v1/application/delete/${id}`,
-        { withCredentials: true }
-      );
-
-      toast.success(data.message);
-      setApplications((prev) => prev.filter((app) => app._id !== id));
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to delete application"
-      );
-    }
-  };
-
   const openModal = (url) => {
+    if (!url) return toast.error("Document snapshot URL is unavailable!");
     window.history.pushState({ modalOpened: true }, "");
     setResumeImageUrl(url);
     setModalOpen(true);
@@ -88,10 +88,32 @@ const MyApplications = () => {
 
   const closeModal = () => {
     setModalOpen(false);
+    setResumeImageUrl("");
     if (window.history.state?.modalOpened) {
       window.history.back();
     }
   };
+
+  // 🔒 SCREEN LAYOUT 1: Agar user bina Admin Key ke dekhne ki koshish karega
+  if (accessDenied) {
+    return (
+      <section className="premium-app-page">
+        <div className="premium-app-container" style={{ textAlign: "center", padding: "100px 20px" }}>
+          <div style={{ fontSize: "50px", color: "#ef4444" }}><FiLock /></div>
+          <h2 style={{ marginTop: "20px", color: "#1e293b" }}>Admin Access Required</h2>
+          <p style={{ color: "#64748b", marginTop: "10px", maxWidth: "500px", margin: "10px auto" }}>
+            Aapke paas is panel ko dekhne ki permissions nahi hain. Sirf wahi Employers applications dekh sakte hain jinhone login karte waqt sahi **Admin Key** lagayi thi.
+          </p>
+          <button 
+            onClick={() => navigate("/")} 
+            style={{ marginTop: "20px", padding: "10px 20px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
+          >
+            Go to Home
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="premium-app-page">
@@ -127,69 +149,50 @@ const MyApplications = () => {
           </div>
         ) : (
           <div className="premium-app-grid">
-            {applications.map((application) => (
-              <div className="premium-app-card" key={application._id}>
-                
-                {/* CARD OVERVIEW BLOCK */}
-                <div className="p-card-top">
-                  <div className="p-avatar">
-                    {application.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="p-meta-ident">
-                    <h2>{application.name}</h2>
-                    <p className="p-email-row"><FiMail /> {application.email}</p>
-                  </div>
-                  <span className="p-status-tag">Received</span>
-                </div>
+            {applications.map((application) => {
+              const candidateName = application.name || application.applicantID?.name || "Anonymous Candidate";
+              const candidateEmail = application.email || application.applicantID?.email || "No Email";
+              const resumeUrl = application.resume?.url || "";
 
-                {/* CARD BODY CONTENTS */}
-                <div className="p-card-body">
-                  <div className="p-resume-thumb" onClick={() => openModal(application.resume?.url)}>
-                    <img src={application.resume?.url} alt="Resume Snapshot" />
-                    <div className="thumb-overlay">
-                      <FiEye /> Quick View
+              return (
+                <div className="premium-app-card" key={application._id}>
+                  <div className="p-card-top">
+                    <div className="p-avatar">{candidateName.charAt(0).toUpperCase()}</div>
+                    <div className="p-meta-ident">
+                      <h2>{candidateName}</h2>
+                      <p className="p-email-row"><FiMail /> {candidateEmail}</p>
                     </div>
+                    <span className="p-status-tag">Received</span>
                   </div>
 
-                  <div className="p-details-pane">
-                    <p className="p-info-item">
-                      <FiPhone className="i-icon" /> <span><strong>Phone:</strong> {application.phone}</span>
-                    </p>
-                    <p className="p-info-item">
-                      <FiMapPin className="i-icon" /> <span><strong>Location:</strong> {application.address}</span>
-                    </p>
-                    
-                    <div className="p-cover-box">
-                      <label>Cover Letter Statement</label>
-                      <div className="cover-scroller">
-                        {application.coverLetter}
+                  <div className="p-card-body">
+                    <div className="p-resume-thumb" onClick={() => resumeUrl && openModal(resumeUrl)}>
+                      {resumeUrl ? <img src={resumeUrl} alt="Resume" /> : <div>⚠️ Resume Missing</div>}
+                    </div>
+
+                    <div className="p-details-pane">
+                      <p className="p-info-item"><FiPhone /> <span><strong>Phone:</strong> {application.phone}</span></p>
+                      <p className="p-info-item"><FiMapPin /> <span><strong>Location:</strong> {application.address}</span></p>
+                      <div className="p-cover-box">
+                        <label>Cover Letter Statement</label>
+                        <div className="cover-scroller">{application.coverLetter}</div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* FOOTER BUTTON CONTROLS */}
-                <div className="p-card-footer">
-                  <button className="footer-action-btn view" onClick={() => openModal(application.resume?.url)}>
-                    <FiEye /> View Document
-                  </button>
-
-                  {user?.role === "Job Seeker" && (
-                    <button className="footer-action-btn delete" onClick={() => deleteApplication(application._id)}>
-                      <FiTrash2 /> Withdraw
+                  <div className="p-card-footer">
+                    <button className="footer-action-btn view" onClick={() => openModal(resumeUrl)} disabled={!resumeUrl}>
+                      <FiEye /> View Document
                     </button>
-                  )}
+                  </div>
                 </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {modalOpen && (
-        <ResumeModal imageUrl={resumeImageUrl} onClose={closeModal} />
-      )}
+      {modalOpen && <ResumeModal imageUrl={resumeImageUrl} onClose={closeModal} />}
     </section>
   );
 };

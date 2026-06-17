@@ -2,16 +2,27 @@ import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import { Application } from "../models/applicationSchema.js";
 import { Job } from "../models/jobSchema.js";
+import mongoose from "mongoose"; 
 import cloudinary from "cloudinary";
 
+// ==========================================================================
+// 1. POST APPLICATION CONTROLLER (Job Seeker Submits Profile)
+// ==========================================================================
 export const postApplication = catchAsyncErrors(async (req, res, next) => {
+  if (!req.user) {
+    return next(new ErrorHandler("User session not found. Please log in again.", 401));
+  }
+
   const { role } = req.user;
   if (role === "Employer") {
-    return next(
-      new ErrorHandler("Employer not allowed to access this resource.", 400)
-    );
+    return next(new ErrorHandler("Employer not allowed to access this resource.", 400));
   }
   
+  const { name, email, coverLetter, phone, address, jobId } = req.body;
+  if (!name || !email || !coverLetter || !phone || !address || !jobId) {
+    return next(new ErrorHandler("Please fill all input fields.", 400));
+  }
+
   if (!req.files || Object.keys(req.files).length === 0) {
     return next(new ErrorHandler("Resume File Required!", 400));
   }
@@ -19,56 +30,29 @@ export const postApplication = catchAsyncErrors(async (req, res, next) => {
   const { resume } = req.files;
   const allowedFormats = ["image/png", "image/jpeg", "image/webp"];
   if (!allowedFormats.includes(resume.mimetype)) {
-    return next(
-      new ErrorHandler("Invalid file type. Please upload a PNG, JPEG, or WEBP file.", 400)
-    );
+    return next(new ErrorHandler("Invalid file type. Please upload a PNG, JPEG, or WEBP file.", 400));
   }
-  
+
+  const jobDetails = await Job.findById(jobId);
+  if (!jobDetails) {
+    return next(new ErrorHandler("Job reference context not found!", 404));
+  }
+
+  const targetEmployerId = jobDetails.postedBy || jobDetails.postedID || jobDetails.createdBy || jobDetails.user;
+
+  if (!targetEmployerId) {
+    return next(new ErrorHandler("Job document does not contain an internal owner or creator link.", 400));
+  }
+
   try {
-    const cloudinaryResponse = await cloudinary.uploader.upload(
-      resume.tempFilePath
-    );
+    const cloudinaryResponse = await cloudinary.uploader.upload(resume.tempFilePath);
 
     if (!cloudinaryResponse || cloudinaryResponse.error) {
-      console.error(
-        "Cloudinary Error:",
-        cloudinaryResponse.error || "Unknown Cloudinary error"
-      );
-      return next(new ErrorHandler("Failed to upload Resume to Cloudinary", 500));
+      return next(new ErrorHandler("Failed to upload Resume snapshot asset to Cloudinary", 500));
     }
     
-    const { name, email, coverLetter, phone, address, jobId } = req.body;
-    const applicantID = {
-      user: req.user._id,
-      role: "Job Seeker",
-    };
-    
-    if (!jobId) {
-      return next(new ErrorHandler("Job not found!", 404));
-    }
-    
-    const jobDetails = await Job.findById(jobId);
-    if (!jobDetails) {
-      return next(new ErrorHandler("Job not found!", 404));
-    }
-
-    const employerID = {
-      user: jobDetails.postedBy,
-      role: "Employer",
-    };
-    
-    if (
-      !name ||
-      !email ||
-      !coverLetter ||
-      !phone ||
-      !address ||
-      !applicantID ||
-      !employerID ||
-      !resume
-    ) {
-      return next(new ErrorHandler("Please fill all fields.", 400));
-    }
+    const applicantID = { user: req.user._id, role: "Job Seeker" };
+    const employerID = { user: new mongoose.Types.ObjectId(targetEmployerId), role: "Employer" };
     
     const application = await Application.create({
       name,
@@ -78,6 +62,7 @@ export const postApplication = catchAsyncErrors(async (req, res, next) => {
       address,
       applicantID,
       employerID,
+      employerId: new mongoose.Types.ObjectId(targetEmployerId),
       resume: {
         public_id: cloudinaryResponse.public_id,
         url: cloudinaryResponse.secure_url,
@@ -86,72 +71,99 @@ export const postApplication = catchAsyncErrors(async (req, res, next) => {
     
     res.status(200).json({
       success: true,
-      message: "Application Submitted!",
+      message: "Application Submitted Successfully!",
       application,
     });
   } catch (error) {
-    // Handle Cloudinary specific errors
-    if (error.message && error.message.includes("api_key")) {
-      console.error("Cloudinary API key error:", error.message);
-      return next(new ErrorHandler("File upload service configuration error", 500));
-    }
-    
-    // Handle any other errors
     return next(error);
   }
 });
 
-export const employerGetAllApplications = catchAsyncErrors(
-  async (req, res, next) => {
-    const { role } = req.user;
-    if (role === "Job Seeker") {
-      return next(
-        new ErrorHandler("Job Seeker not allowed to access this resource.", 400)
-      );
-    }
-    const { _id } = req.user;
-    const applications = await Application.find({ "employerID.user": _id });
-    res.status(200).json({
-      success: true,
-      applications,
-    });
+// ==========================================================================
+// 2. EMPLOYER: GET ALL APPLICATIONS (Fix: Admin key restriction removed)
+// ==========================================================================
+export const employerGetAllApplications = catchAsyncErrors(async (req, res, next) => {
+  if (!req.user) {
+    return next(new ErrorHandler("User session not found. Please log in again.", 401));
   }
-);
 
-export const jobseekerGetAllApplications = catchAsyncErrors(
-  async (req, res, next) => {
-    const { role } = req.user;
-    if (role === "Employer") {
-      return next(
-        new ErrorHandler("Employer not allowed to access this resource.", 400)
-      );
-    }
-    const { _id } = req.user;
-    const applications = await Application.find({ "applicantID.user": _id });
-    res.status(200).json({
-      success: true,
-      applications,
-    });
+  // 🛡️ Only check if the user role is Employer
+  if (req.user.role !== "Employer") {
+    return next(new ErrorHandler("Access denied. Only Employers can view these submissions.", 403));
   }
-);
+  
+  const { _id } = req.user;
+  const parsedEmployerId = mongoose.Types.ObjectId.isValid(_id) ? new mongoose.Types.ObjectId(_id) : _id;
 
-export const jobseekerDeleteApplication = catchAsyncErrors(
-  async (req, res, next) => {
-    const { role } = req.user;
-    if (role === "Employer") {
-      return next(
-        new ErrorHandler("Employer not allowed to access this resource.", 400)
-      );
-    }
-    const { id } = req.params;
-    const application = await Application.findById(id);
-    if (!application) {
-      return next(new ErrorHandler("Application not found!", 404));
-    }
-    await application.deleteOne();
-    res.status(200).json({
-      success: true,
-      message: "Application Deleted!",
-    });
+  // Query matching all potential schema structures for the employer ID
+  const applications = await Application.find({
+    $or: [
+      { "employerID.user": parsedEmployerId },
+      { "employerID.user": _id.toString() },
+      { employerID: parsedEmployerId },
+      { employerId: parsedEmployerId },
+      { "employerId": _id.toString() },
+      { "employerID": parsedEmployerId }
+    ]
+  }).populate("applicantID").populate("userID");
+
+  console.log("Query Execution for Employer ID:", _id);
+  console.log("Records Pulled:", applications.length);
+
+  res.status(200).json({
+    success: true,
+    applications,
+  });
+});
+
+// ==========================================================================
+// 3. JOB SEEKER: GET ALL APPLICATIONS
+// ==========================================================================
+export const jobseekerGetAllApplications = catchAsyncErrors(async (req, res, next) => {
+  if (!req.user) {
+    return next(new ErrorHandler("User session not found. Please log in again.", 401));
   }
-);
+
+  if (req.user.role === "Employer") {
+    return next(new ErrorHandler("Employer not allowed to access this resource.", 400));
+  }
+  const { _id } = req.user;
+  const parsedApplicantId = mongoose.Types.ObjectId.isValid(_id) ? new mongoose.Types.ObjectId(_id) : _id;
+
+  const applications = await Application.find({
+    $or: [
+      { "applicantID.user": parsedApplicantId },
+      { "applicantID.user": _id.toString() },
+      { applicantID: parsedApplicantId },
+      { applicantId: parsedApplicantId }
+    ]
+  });
+
+  res.status(200).json({
+    success: true,
+    applications,
+  });
+});
+
+// ==========================================================================
+// 4. JOB SEEKER: WITHDRAW/DELETE APPLICATION
+// ==========================================================================
+export const jobseekerDeleteApplication = catchAsyncErrors(async (req, res, next) => {
+  if (!req.user) {
+    return next(new ErrorHandler("User session not found. Please log in again.", 401));
+  }
+
+  if (req.user.role === "Employer") {
+    return next(new ErrorHandler("Employer not allowed to access this resource.", 400));
+  }
+  
+  const application = await Application.findById(req.params.id);
+  if (!application) {
+    return next(new ErrorHandler("Application not found!", 404));
+  }
+  await application.deleteOne();
+  res.status(200).json({
+    success: true,
+    message: "Application Deleted Successfully!",
+  });
+});

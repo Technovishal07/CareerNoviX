@@ -37,7 +37,7 @@ const Footer = () => {
         <div className="footer__copyright">
           &copy; {currentYear} All Rights Reserved By{" "}
           <span className="brand-career">Career</span>
-          <span className="brand-nova">Nova</span>.
+          <span className="brand-nova">NoviX</span>.
         </div>
 
         {/* Right: Static Real Colors Brand Icons */}

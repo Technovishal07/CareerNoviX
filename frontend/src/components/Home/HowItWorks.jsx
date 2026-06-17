@@ -8,11 +8,11 @@ const HowItWorks = () => {
     <>
       <div className="howitworks">
         <div className="container">
-          <h3>How Career Connect Works !</h3>
+          <h3>How CareerNoviX Works !</h3>
           <div className="banner">
             <div className="card">
               <FaUserPlus />
-              <p className="text-3xl font-bold">Create Your Job Seeker Account</p>
+              <p className="text-3xl font-bold">Create Your CareerNoviX Account</p>
               <p className="text-gray-500 mt-2">
                 Sign up to discover thousands of verified job opportunities and apply instantly.
               </p>
